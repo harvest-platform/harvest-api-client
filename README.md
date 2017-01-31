@@ -1,6 +1,12 @@
-# Harvest JS
+# Harvest API Client
 
-JavaScript client library for Harvest.
+JavaScript client library for the Harvest API.
+
+## Install
+
+```
+npm install harvest-api-client
+```
 
 ## Usage
 
@@ -8,22 +14,18 @@ JavaScript client library for Harvest.
 - Each level of the API is accessed through objects.
 
 ```js
-import Client from 'harvest-js'
+import Client from 'harvest-api-client'
 
-var client = new Client('http://harvest.research.chop.edu/demo/api/');
+const client = new Client('http://harvest.research.chop.edu/demo/api/');
 
-// Open the session. For servers that require credentials, an object
-// with the `username` and `password` fields can be set.
+// Open the session. For APIs that require credentials, an object with
+// the `username` and `password` fields or a `token` field may be set.
 client.open()
   .then(function() {
-
-    // Set some state that the client has successfully opened.
-
+    // Sesssion successfully open.
   })
   .catch(function(error) {
-
     // An error occurred opening the session.
-
   });
 ```
 
