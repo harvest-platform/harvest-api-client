@@ -268,8 +268,14 @@ class Client {
       headers;
 
     if (creds) {
-      method = 'POST';
-      body = creds;
+      if (creds.username) {
+        method = 'POST';
+        body = creds;
+      } else if (creds.token) {
+        this._token = creds.token;
+      } else {
+        throw new Error('credentials must be username/password or token.');
+      }
     }
 
     return this.do({url: this.url, method, body, headers})
