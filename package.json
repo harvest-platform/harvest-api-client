@@ -3,6 +3,7 @@
   "description": "",
   "license": "BSD",
   "readme": "README.md",
+  "main": "index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/chop-dbhi/harvest-js"

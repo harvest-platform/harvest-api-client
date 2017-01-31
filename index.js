@@ -1,3 +1,1 @@
-import Client from './lib/client'
-
-export default Client;
+module.exports = require('./lib/harvest');
