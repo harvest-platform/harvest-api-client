@@ -1,12 +1,12 @@
 {
   "name": "harvest-js",
   "description": "",
-  "license": "BSD",
+  "license": "BSD-3-Clause",
   "readme": "README.md",
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/chop-dbhi/harvest-js"
+    "url": "https://github.com/harvest-platform/harvest-js"
   },
   "author": {
     "name": "Byron Ruth",
