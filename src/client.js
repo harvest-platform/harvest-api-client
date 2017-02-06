@@ -230,14 +230,14 @@ class Client {
     this._monitor = null;
 
     // API
-    this.categories = null;
-    this.concepts = null;
-    this.fields = null;
-    this.contexts = null;
-    this.views = null;
-    this.queries = null;
-    this.data = null;
-    this.stats = null;
+    this.categories = new Categories(this);
+    this.concepts = new Concepts(this);
+    this.fields = new Fields(this);
+    this.contexts = new Contexts(this);
+    this.views = new Views(this);
+    this.queries = new Queries(this);
+    this.data = new Data(this);
+    this.stats = new Stats(this);
   }
 
   // Ping sends a request to the server to check if the session
@@ -304,16 +304,6 @@ class Client {
         } else {
           res = this;
         }
-
-        // Initialize API.
-        this.categories = new Categories(this);
-        this.concepts = new Concepts(this);
-        this.fields = new Fields(this);
-        this.contexts = new Contexts(this);
-        this.views = new Views(this);
-        this.queries = new Queries(this);
-        this.data = new Data(this);
-        this.stats = new Stats(this);
 
         return res;
       });
