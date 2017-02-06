@@ -37,7 +37,7 @@ function throwNotOpen() {
 }
 
 function throwUnknownLink(name) {
-  throw new Error(`unknonwn link ${name}`);
+  throw new Error(`unknown link "${name}"`);
 }
 
 // Constructs and throws a response status error.
