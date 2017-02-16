@@ -162,9 +162,15 @@ class Data extends Resource {
       .then(parseData);
   }
 
-  export(type) {
-    if (!type) throw new Error('type required');
-    return this.client.do({ rel: 'export', vars: {type} })
+  export({ format, context, view }) {
+    if (!format) throw new Error('format required');
+
+    let body;
+    if (context || view) {
+      body = { context, view };
+    }
+
+    return this.client.do({ rel: 'export', vars: {type: format}, body })
       .then(parseData);
   }
 }
