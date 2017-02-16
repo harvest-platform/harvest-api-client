@@ -3,8 +3,6 @@ import parseLinkHeader from 'parse-link-header';
 import urlparams from 'url-params';
 import linktemplate from './linktemplate';
 
-const DEFAULT_MONITOR_INTERVAL = 30000;  // 30 seconds
-
 function parseData(resp) {
   return resp.json().then(function(data) {
     return data;
@@ -16,24 +14,6 @@ function parseLinks(target, resp) {
   target._links = parseLinkHeader(resp.headers.get('link'));
   target._linkTemplates = parseLinkHeader(resp.headers.get('link-template'));
   return resp
-}
-
-// Promises: http://stackoverflow.com/a/26077620/407954
-function logError(error) {
-  // TODO: send error to service.
-  // console.log(error);
-
-  const msg = error.toString();
-
-  if (/failed to fetch/i.test(msg)) {
-    throw new Error('Could not connect to server');
-  } else {
-    throw error;
-  }
-}
-
-function throwNotOpen() {
-  throw new Error('session not open');
 }
 
 function throwUnknownLink(name) {
@@ -75,8 +55,7 @@ class Resource {
 
 class Categories extends Resource {
   all() {
-    const url = this.client.rel('categories');
-    return this.client.do({ url })
+    return this.client.do({ rel: 'categories' })
       .then((resp) => parseLinks(this, resp))
       .then(parseData);
   }
@@ -84,18 +63,15 @@ class Categories extends Resource {
 
 class Fields extends Resource {
   all() {
-    const url = this.client.rel('fields');
-    return this.client.do({ url })
+    return this.client.do({ rel: 'fields' })
       .then((resp) => parseLinks(this, resp))
       .then(parseData)
   }
 }
 
 class Concepts extends Resource {
-  // TODO: cache for other methods.
   all() {
-    const url = this.client.rel('concepts');
-    return this.client.do({ url })
+    return this.client.do({ rel: 'concepts' })
       .then(parseData);
   }
 
@@ -117,20 +93,13 @@ class Concepts extends Resource {
 
   search(query) {
     if (!query) throw new Error('query required');
-
-    const url = this.client.rel('concepts');
-    return this.client.do({
-      url: url,
-      params: {'query': query}
-    })
+    return this.client.do({ rel: 'concepts', params: {query} })
       .then(parseData);
   }
 
   get(id) {
     if (!id) throw new Error('id required');
-
-    const url = this.client.rel('concept', {id: id});
-    return this.client.do({ url })
+    return this.client.do({ rel: 'concept', vars: {id} })
       .then(parseData);
   }
 }
@@ -138,70 +107,64 @@ class Concepts extends Resource {
 
 class Contexts extends Resource {
   all() {
-    const url = this.client.rel('contexts');
-    return this.client.do({ url })
+    return this.client.do({ rel: 'contexts' })
       .then(parseData);
   }
 
   get(id) {
     if (!id) throw new Error('id required');
-
-    const url = this.client.rel('context', {id: id});
-    return this.client.do({ url })
+    return this.client.do({ rel: 'context', vars: {id} })
       .then(parseData);
   }
 }
 
 class Views extends Resource {
   all() {
-    const url = this.client.rel('views');
-    return this.client.do({ url })
+    return this.client.do({ rel: 'views' })
       .then(parseData);
   }
 
   get(id) {
     if (!id) throw new Error('id required');
-
-    const url = this.client.rel('view', {id: id});
-    return this.client.do({ url })
+    return this.client.do({ rel: 'view', vars: {id} })
       .then(parseData);
   }
 }
 
 class Queries extends Resource {
   all() {
-    const url = this.client.rel('queries');
-    return this.client.do({ url })
+    return this.client.do({ rel: 'queries' })
       .then(parseData);
   }
 
   public() {
-    const url = this.client.rel('public_queries');
-    return this.client.do({ url })
+    return this.client.do({ rel: 'public_queries' })
       .then(parseData);
   }
 
   get(id) {
     if (!id) throw new Error('id required');
-
-    const url = this.client.rel('query', {id: id});
-    return this.client.do({ url })
+    return this.client.do({ rel: 'query', vars: {id} })
       .then(parseData);
   }
 }
 
 class Data extends Resource {
-  preview() {
-    const url = this.client.rel('preview');
-    return this.client.do({ url })
+  preview({ page, limit, context, view }) {
+    const params = { page, limit };
+
+    let body;
+    if (context || view) {
+      body = { context, view };
+    }
+
+    return this.client.do({ rel: 'preview', body, params })
       .then(parseData);
   }
 
   export(type) {
     if (!type) throw new Error('type required');
-
-    const url = this.client.rel('export', {type: type});
-    return this.client.do({ url })
+    return this.client.do({ rel: 'export', vars: {type} })
       .then(parseData);
   }
 }
@@ -209,27 +172,29 @@ class Data extends Resource {
 
 class Stats extends Resource {
   counts() {
-    const url = this.client.rel('stats_counts');
-    return this.client.do({ url })
+    return this.client.do({ rel: 'stats_counts' })
       .then(parseData);
   }
 }
 
 // Client is a client for the Harvest HTTP service.
 class Client {
-
-  constructor(url) {
-    if (!url) {
-      throw new Error('URL required');
+  constructor(opts) {
+    if (!opts) {
+      throw new Error('URL or config object required.');
     }
 
-    this.url = url;
+    // URL passed.
+    if (typeof opts  === 'string') {
+      this.url = opts;
+    } else {
+      this.url = opts.url;
+      this.username = opts.username;
+      this.password = opts.password;
+      this.token = opts.token;
+    }
 
-    // Internal state.
-    this._token = null;
-    this._monitor = null;
-
-    // API
+    // Resources.
     this.categories = new Categories(this);
     this.concepts = new Concepts(this);
     this.fields = new Fields(this);
@@ -240,11 +205,10 @@ class Client {
     this.stats = new Stats(this);
   }
 
-  // Ping sends a request to the server to check if the session
+  // ping sends a request to the server to check if the session
   // is still alive. If not, a timeout error will be thrown.
   ping() {
-    const url = this.rel('ping');
-    return this.do({url: url})
+    return this.do({ rel: 'ping' })
       .then(function(resp) {
         // Ping should always return a 200.
         if (resp.ok) {
@@ -257,85 +221,22 @@ class Client {
         }
         throwStatusError(resp);
       })
-
   }
 
-  // Open opens the session. For servers that require authentication,
-  // credentials can be passed.
-  open(creds) {
-    let method = 'GET',
-      body,
-      headers;
-
-    if (creds) {
-      if (creds.username) {
-        method = 'POST';
-        body = creds;
-      } else if (creds.token) {
-        this._token = creds.token;
-      } else {
-        throw new Error('credentials must be username/password or token.');
-      }
-    }
-
-    return this.do({url: this.url, method, body, headers})
-      .then((resp) => {
-        parseLinks(this, resp);
-
-        // Start a monitor.
-        clearTimeout(this._monitor);
-
-        this._monitor = setInterval(() => {
-          // When an error occurs, close the session.
-          this.ping()
-            .catch((error) => this.close());
-        }, DEFAULT_MONITOR_INTERVAL);
-
-        let res;
-
-        // Extract the token from the response body.
-        if (creds) {
-          // Extract the token from the response,
-          // return the session object to chain.
-          res = resp.json().then((data) => {
-            this._token = data.token;
-            return this;
-          });
-        } else {
-          res = this;
-        }
-
-        return res;
-      });
-  }
-
-  // Close closes the session.
-  close() {
-    clearTimeout(this._monitor);
-    delete this._token;
-    delete this._links;
-  }
-
-  // Returns a related URL by name.
+  // rel returns a related URL by name.
   rel(name, vars) {
     if (vars) {
-      if (!this._linkTemplates || !this._linkTemplates[name]) {
-        throwUnknownLink(name);
-      }
+      if (!this._linkTemplates[name]) throwUnknownLink(name);
       return linktemplate.sub(this._linkTemplates[name].url, vars);
     }
 
-    if (!this._links || !this._links[name]) {
-      throwUnknownLink(name)
-    }
-
+    if (!this._links[name]) throwUnknownLink(name);
     return this._links[name].url;
   }
 
-  // Prepares and sends a request.
-  do({url, method = 'GET', body, params, headers = {}}) {
+  // _send actually constructs and sends the request.
+  _send({ url, method, body, params, headers = {}}) {
     const options = {
-      method: method,
       credentials: 'include',
       headers: headers
     };
@@ -345,6 +246,7 @@ class Client {
     }
 
     if (body) {
+      // Default to JSON.
       if (!options.headers['Content-Type']) {
         options.headers['Content-Type'] = 'application/json';
       }
@@ -354,6 +256,12 @@ class Client {
       } else {
         options.body = body;
       }
+
+      if (!method) {
+        method = 'POST';
+      }
+    } else if (!method) {
+      method = 'GET';
     }
 
     if (params) {
@@ -362,16 +270,71 @@ class Client {
       }
     }
 
-    if (this._token) {
-      options.headers['Api-Token'] = this._token;
+    if (this.token) {
+      options.headers['Api-Token'] = this.token;
     }
+
+    options.method = method;
 
     // Perform the fetch and check for unexpected errors.
     return fetch(url, options)
       .then(checkClientServerError)
-      .catch(logError);
   }
 
+  // Open opens the session. For servers that require authentication,
+  // credentials can be passed.
+  _auth() {
+    const url = this.url;
+    const method = 'POST';
+    const body = {
+      username: this.username,
+      password: this.passsword
+    };
+
+    return this._send({ url, method, body })
+      .then((resp) => {
+        // Extract the token from the response. return the response
+        // to chain with caller.
+        return resp.json().then((data) => {
+          this.token = data.token;
+          return resp;
+        });
+      });
+  }
+
+  _init() {
+    let p;
+
+    // Username is supplied, but no token has been retrieved.
+    // Authentication first.
+    if (this.username) {
+      p = this._auth();
+    } else {
+      p = this._send({ url: this.url });
+    }
+
+    // Parse the links.
+    return p.then((resp) => {
+      parseLinks(this, resp);
+      return resp;
+    });
+  }
+
+  // do is public method for sending a request.
+  do({ url, rel, vars, method, body, params, headers }) {
+    let p;
+
+    if (!this._links) {
+      p = this._init();
+    } else {
+      p = Promise.resolve();
+    }
+
+    return p.then(() => {
+      if (rel) url = this.rel(rel, vars);
+      return this._send({ url, method, body, params, headers });
+    });
+  }
 }
 
 export default Client;
