@@ -12,7 +12,7 @@
     "name": "Byron Ruth",
     "email": "b@devel.io"
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "devDependencies": {
     "babel-core": "^6.18.2",
     "babel-eslint": "^7.1.1",
