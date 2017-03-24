@@ -1,1 +1,1 @@
-module.exports = require('./lib/harvest');
+module.exports = require('./src/index');
